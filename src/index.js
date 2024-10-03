@@ -1,25 +1,31 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { firebaseConfig, vapidKey } from './firebaseConfig';
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
-
-
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { initializeApp } from "firebase/app";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { firebaseConfig, vapidKey } from './firebaseConfig';
 import reportWebVitals from './reportWebVitals';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-// const analytics = getAnalytics(app);
 const messaging = getMessaging(app);
 
+// Get FCM token
 getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
-  console.log('currentToken: ', currentToken);
+  if (currentToken) {
+    console.log('FCM Token:', currentToken);
+    // Dispatch a custom event with the FCM token so that the App component can display it
+    const event = new CustomEvent('fcmToken', { detail: currentToken });
+    window.dispatchEvent(event); // Dispatch to the window object
+  } else {
+    console.log('No registration token available. Request permission to generate one.');
+  }
+}).catch((err) => {
+  console.log('An error occurred while retrieving token.', err);
 });
 
+// Request permission for notifications
 (function requestPermission() {
   console.log('Requesting permission...');
   Notification.requestPermission().then((permission) => {
@@ -29,10 +35,13 @@ getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
   });
 })();
 
+// Handle incoming messages
 onMessage(messaging, (payload) => {
-  console.log('Message received. ', payload);
+  console.log('Message received: ', payload);
+  // Dispatch a custom event with the message payload so that the App component can display it
+  const messageEvent = new CustomEvent('fcmMessage', { detail: payload.notification.body });
+  window.dispatchEvent(messageEvent); // Dispatch to the window object
 });
-
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -41,7 +50,4 @@ root.render(
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
