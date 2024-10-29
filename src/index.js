@@ -17,7 +17,7 @@ getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
     console.log('FCM Token:', currentToken);
     // Dispatch a custom event with the FCM token so that the App component can display it
     const event = new CustomEvent('fcmToken', { detail: currentToken });
-    window.dispatchEvent(event); // Dispatch to the window object
+    window.dispatchEvent(event);
   } else {
     console.log('No registration token available. Request permission to generate one.');
   }
@@ -35,12 +35,20 @@ getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
   });
 })();
 
-// Handle incoming messages
+// Handle foreground messages
 onMessage(messaging, (payload) => {
-  console.log('Message received: ', payload);
-  // Dispatch a custom event with the message payload so that the App component can display it
+  console.log('Foreground message received: ', payload);
   const messageEvent = new CustomEvent('fcmMessage', { detail: payload.notification.body });
-  window.dispatchEvent(messageEvent); // Dispatch to the window object
+  window.dispatchEvent(messageEvent);
+});
+
+// Listen for messages from the service worker (background messages)
+navigator.serviceWorker.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'backgroundMessage') {
+    console.log('Background message received in main app:', event.data);
+    const messageEvent = new CustomEvent('fcmMessage', { detail: `${event.data.title}: ${event.data.body}` });
+    window.dispatchEvent(messageEvent);
+  }
 });
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
