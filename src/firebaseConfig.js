@@ -4,6 +4,7 @@
 export const firebaseConfig = {
     apiKey: "AIzaSyDXV6M1jEfKg7whybipdRxg7LCWrtuVSCc",
     authDomain: "opdracht1mobile.firebaseapp.com",
+    databaseURL: "https://opdracht1mobile-default-rtdb.europe-west1.firebasedatabase.app/",
     projectId: "opdracht1mobile",
     storageBucket: "opdracht1mobile.appspot.com",
     messagingSenderId: "960547339082",
@@ -12,3 +13,4 @@ export const firebaseConfig = {
 };
 
 export const vapidKey = "BGx-EcESWh3G50BPOCKUNgkz8gGdx13mClCfiUZzZ8Dys6cs-uejgVDfd-RPV8Sjrri2CYy9BG9t23gMhyQdcGw";
+

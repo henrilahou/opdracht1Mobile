@@ -1,56 +1,67 @@
 import React, { useState, useEffect } from 'react';
+import { getDatabase, ref, onValue, set } from 'firebase/database';
+import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { firebaseConfig, vapidKey } from './firebaseConfig';
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const messaging = getMessaging(app);
 
 function App() {
-  const [token, setToken] = useState(null);
-  const [message, setMessage] = useState(null);
+  const [temperature, setTemperature] = useState(null);
+  const [lightStatus, setLightStatus] = useState("off");
 
   useEffect(() => {
-    // Add event listener for FCM token
-    const handleToken = (event) => {
-      console.log('Token received in App component:', event.detail);
-      setToken(event.detail);
-    };
+    const tempRef = ref(database, 'sensorData/temperature');
+    onValue(tempRef, (snapshot) => {
+      const newTemp = snapshot.val();
+      if (newTemp !== temperature) { // Only update if temperature changes
+        setTemperature(newTemp);
+        if (Notification.permission === 'granted') {
+          new Notification('Temperature Alert', { body: `Temperature is now ${newTemp}°C` });
+          console.log("Temperature notification sent:", newTemp);
+        }
+      }
+    });
 
-    window.addEventListener('fcmToken', handleToken);
+    const lightRef = ref(database, 'lightControl/status');
+    onValue(lightRef, (snapshot) => setLightStatus(snapshot.val()));
 
-    // Add event listener for FCM message
-    const handleMessage = (event) => {
-      console.log('Message received in App component:', event.detail);
-      setMessage(event.detail);
-    };
+    getToken(messaging, { vapidKey })
+      .then((currentToken) => {
+        if (currentToken) {
+          console.log('FCM Token:', currentToken);
+        } else {
+          console.log('No registration token available.');
+        }
+      })
+      .catch((err) => console.log('Error retrieving token:', err));
 
-    window.addEventListener('fcmMessage', handleMessage);
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        console.log('Notification permission granted.');
+      }
+    });
 
-    // Clean up event listeners when the component unmounts
-    return () => {
-      window.removeEventListener('fcmToken', handleToken);
-      window.removeEventListener('fcmMessage', handleMessage);
-    };
-  }, []);
+    onMessage(messaging, (payload) => {
+      console.log('Message received:', payload);
+      new Notification(payload.notification.title, { body: payload.notification.body });
+    });
+  }, [temperature]);
+
+  const toggleLight = () => {
+    const newStatus = lightStatus === "on" ? "off" : "on";
+    set(ref(database, 'lightControl/status'), newStatus)
+      .then(() => console.log('Light status updated to:', newStatus))
+      .catch((error) => console.error('Error updating light status:', error));
+  };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Firebase Cloud Messaging Demo</h1>
-        
-        {token ? (
-          <>
-            <h2>Your FCM Token:</h2>
-            <p>{token}</p>
-          </>
-        ) : (
-          <p>Fetching FCM Token...</p>
-        )}
-
-        {message ? (
-          <>
-            <h2>Received Message:</h2>
-            <p>{message}</p>
-          </>
-        ) : (
-          <p>No messages yet.</p>
-        )}
-      </header>
+    <div>
+      <h1>IoT Dashboard</h1>
+      <p>Temperature: {temperature}°C</p>
+      <button onClick={toggleLight}>Turn Light {lightStatus === "on" ? "Off" : "On"}</button>
     </div>
   );
 }
